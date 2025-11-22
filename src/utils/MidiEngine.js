@@ -6,6 +6,8 @@ export class MidiEngine {
         this.synths = [];
         this.isPlaying = false;
         this.liveNotes = new Set();
+        this.originalBpm = 120;
+        this.handView = 'both';
 
         // Main synth for playback and live input
         this.mainSynth = new Tone.PolySynth(Tone.Synth, {
@@ -23,11 +25,20 @@ export class MidiEngine {
         Tone.Transport.position = 0;
         Tone.Transport.cancel();
 
+        // Store original BPM (default to 120 if not present)
+        this.originalBpm = this.midi.header.tempos.length > 0 ? this.midi.header.tempos[0].bpm : 120;
+        Tone.Transport.bpm.value = this.originalBpm;
+
         // Schedule notes
         if (this.midi.tracks) {
-            this.midi.tracks.forEach(track => {
+            this.midi.tracks.forEach((track, trackIndex) => {
                 track.notes.forEach(note => {
                     Tone.Transport.schedule((time) => {
+                        // Check if this track should play based on handView
+                        // Track 0 = Right, Track 1 = Left
+                        if (this.handView === 'right' && trackIndex !== 0) return;
+                        if (this.handView === 'left' && trackIndex !== 1) return;
+
                         this.mainSynth.triggerAttackRelease(note.name, note.duration, time, note.velocity);
                     }, note.time);
                 });
@@ -54,7 +65,11 @@ export class MidiEngine {
     }
 
     getCurrentTime() {
-        return Tone.Transport.seconds;
+        if (!this.midi || !this.originalBpm) return 0;
+        // Calculate time based on ticks and original BPM to keep visualizer in sync
+        // ticks / PPQ * 60 / originalBPM
+        const ppq = Tone.Transport.PPQ;
+        return (Tone.Transport.ticks / ppq) * (60 / this.originalBpm);
     }
 
     // Live Input Methods
@@ -84,6 +99,40 @@ export class MidiEngine {
             });
         }
         return [...new Set(activeNotes)];
+    }
+
+    setTime(seconds) {
+        if (seconds >= 0 && seconds <= this.getDuration() && this.originalBpm) {
+            const ppq = Tone.Transport.PPQ;
+            const ticks = (seconds * this.originalBpm / 60) * ppq;
+            Tone.Transport.ticks = ticks;
+        }
+    }
+
+    setPlaybackRate(rate) {
+        if (this.originalBpm) {
+            Tone.Transport.bpm.value = this.originalBpm * rate;
+        }
+    }
+
+    setHandView(handView) {
+        // 'both', 'right' (track 0), 'left' (track 1)
+        // We can't easily mute individual notes in the scheduler once scheduled, 
+        // but we can control the volume of the synth or filtering logic.
+        // However, since we are using a single PolySynth for all tracks, we can't mute just one track's notes easily 
+        // WITHOUT rescheduling or having separate synths per track.
+
+        // REFACTOR: To support muting, we should probably have separate synths or 
+        // just filter the notes in the scheduler?
+        // Actually, the easiest way with the current setup (single synth) is to NOT schedule the notes 
+        // for the muted track, OR to have a check inside the schedule callback.
+
+        // Let's update the scheduler to check a mutedTracks set.
+        this.handView = handView;
+    }
+
+    getDuration() {
+        return this.midi ? this.midi.duration : 0;
     }
 }
 

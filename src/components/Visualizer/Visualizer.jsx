@@ -6,7 +6,7 @@ import * as Tone from 'tone';
 import pianoLogo from '../../assets/piano-logo.png';
 
 // Note Component for PixiJS
-const FallingNotes = ({ midiData, screenHeight, screenWidth }) => {
+const FallingNotes = ({ midiData, screenHeight, screenWidth, handView, showParticles }) => {
     const graphicsRef = useRef(null);
 
     const lastTimeRef = useRef(0);
@@ -40,56 +40,74 @@ const FallingNotes = ({ midiData, screenHeight, screenWidth }) => {
             g.endFill();
         });
 
-        midiData.tracks.forEach(track => {
+        midiData.tracks.forEach((track, trackIndex) => {
+            // Hand Filtering Logic
+            // Track 0 = Right Hand (usually), Track 1 = Left Hand (usually)
+            if (handView === 'right' && trackIndex !== 0) return;
+            if (handView === 'left' && trackIndex !== 1) return;
+            // If 'both', show all (or maybe just first two? let's show all for now but color first two)
+
+            // Color Logic
+            // Right Hand (Track 0) = Gold/Yellow (0xFFD700)
+            // Left Hand (Track 1) = Cyan/Blue (0x00F3FF)
+            // Others = Grey/Default
+            let baseColor = 0x999999;
+            if (trackIndex === 0) baseColor = 0xFFD700; // Gold
+            if (trackIndex === 1) baseColor = 0x00F3FF; // Cyan
+
             track.notes.forEach(note => {
                 const timeToHit = note.time - currentTime;
 
                 // Hit Detection
                 // If note time is between last frame time and current time, it just hit
                 if (note.time > lastTime && note.time <= currentTime) {
-                    // Spawn particles
-                    // Calculate X (reusing logic - ideally should be a helper, but keeping inline for now)
-                    let x = 0;
-                    for (let i = startMidi; i < note.midi; i++) {
-                        const pitchClass = i % 12;
-                        const isSharp = [1, 3, 6, 8, 10].includes(pitchClass);
-                        if (!isSharp) x += WHITE_KEY_WIDTH;
-                    }
-                    let finalX = x;
-                    let width = WHITE_KEY_WIDTH - 2;
-                    const currentPitchClass = note.midi % 12;
-                    const isCurrentSharp = [1, 3, 6, 8, 10].includes(currentPitchClass);
-                    if (isCurrentSharp) {
-                        finalX = x - (BLACK_KEY_WIDTH / 2);
-                        width = BLACK_KEY_WIDTH;
-                    }
+                    if (showParticles) {
+                        // Spawn particles
+                        // Calculate X (reusing logic - ideally should be a helper, but keeping inline for now)
+                        let x = 0;
+                        for (let i = startMidi; i < note.midi; i++) {
+                            const pitchClass = i % 12;
+                            const isSharp = [1, 3, 6, 8, 10].includes(pitchClass);
+                            if (!isSharp) x += WHITE_KEY_WIDTH;
+                        }
+                        let finalX = x;
+                        let width = WHITE_KEY_WIDTH - 2;
+                        const currentPitchClass = note.midi % 12;
+                        const isCurrentSharp = [1, 3, 6, 8, 10].includes(currentPitchClass);
+                        if (isCurrentSharp) {
+                            finalX = x - (BLACK_KEY_WIDTH / 2);
+                            width = BLACK_KEY_WIDTH;
+                        }
 
-                    // Center offset
-                    const endMidi = Tone.Frequency(END_NOTE).toMidi();
-                    let totalWhiteKeys = 0;
-                    for (let i = startMidi; i <= endMidi; i++) {
-                        const pc = i % 12;
-                        if (![1, 3, 6, 8, 10].includes(pc)) totalWhiteKeys++;
-                    }
-                    const totalPianoWidth = totalWhiteKeys * WHITE_KEY_WIDTH;
-                    const startOffset = (screenWidth - totalPianoWidth) / 2;
-                    finalX += startOffset;
+                        // Center offset
+                        const endMidi = Tone.Frequency(END_NOTE).toMidi();
+                        let totalWhiteKeys = 0;
+                        for (let i = startMidi; i <= endMidi; i++) {
+                            const pc = i % 12;
+                            if (![1, 3, 6, 8, 10].includes(pc)) totalWhiteKeys++;
+                        }
+                        const totalPianoWidth = totalWhiteKeys * WHITE_KEY_WIDTH;
+                        const startOffset = (screenWidth - totalPianoWidth) / 2;
+                        finalX += startOffset;
 
-                    const hitX = finalX + width / 2;
-                    const hitY = screenHeight; // Bottom of screen/top of keys
-                    const color = isCurrentSharp ? 0xff00aa : 0x00f3ff;
+                        const hitX = finalX + width / 2;
+                        const hitY = screenHeight; // Bottom of screen/top of keys
 
-                    // Create burst
-                    for (let i = 0; i < 8; i++) {
-                        particlesRef.current.push({
-                            x: hitX,
-                            y: hitY,
-                            vx: (Math.random() - 0.5) * 5,
-                            vy: -(Math.random() * 5 + 2), // Upwards
-                            life: 1.0,
-                            size: Math.random() * 3 + 1,
-                            color: color
-                        });
+                        // Use the track color for particles too
+                        const color = baseColor;
+
+                        // Create burst
+                        for (let i = 0; i < 8; i++) {
+                            particlesRef.current.push({
+                                x: hitX,
+                                y: hitY,
+                                vx: (Math.random() - 0.5) * 5,
+                                vy: -(Math.random() * 5 + 2), // Upwards
+                                life: 1.0,
+                                size: Math.random() * 3 + 1,
+                                color: color
+                            });
+                        }
                     }
                 }
 
@@ -138,8 +156,8 @@ const FallingNotes = ({ midiData, screenHeight, screenWidth }) => {
                 finalX += startOffset;
 
                 // Draw
-                // Color based on key type: Cyan for white keys, Magenta for black keys
-                const color = isCurrentSharp ? 0xff00aa : 0x00f3ff;
+                // Use track color
+                const color = baseColor;
 
                 g.beginFill(color);
                 const radius = width / 2;
@@ -159,7 +177,7 @@ const FallingNotes = ({ midiData, screenHeight, screenWidth }) => {
 };
 
 // Component for rendering note name labels
-const NoteLabels = ({ midiData, screenHeight, screenWidth }) => {
+const NoteLabels = ({ midiData, screenHeight, screenWidth, handView }) => {
     const startMidi = useMemo(() => Tone.Frequency(START_NOTE).toMidi(), []);
     const [visibleNotes, setVisibleNotes] = useState([]);
 
@@ -170,8 +188,12 @@ const NoteLabels = ({ midiData, screenHeight, screenWidth }) => {
         const lookAheadTime = screenHeight / NOTE_FALL_SPEED;
         const notes = [];
 
-        midiData.tracks.forEach(track => {
-            track.notes.forEach(note => {
+        midiData.tracks.forEach((track, trackIndex) => {
+            // Hand Filtering Logic
+            if (handView === 'right' && trackIndex !== 0) return;
+            if (handView === 'left' && trackIndex !== 1) return;
+
+            track.notes.forEach((note, noteIndex) => {
                 const timeToHit = note.time - currentTime;
 
                 if (timeToHit > lookAheadTime || timeToHit < -5) {
@@ -219,7 +241,7 @@ const NoteLabels = ({ midiData, screenHeight, screenWidth }) => {
                     name: note.name,
                     x: finalX + width / 2,
                     y: y + noteHeight / 2,
-                    key: `${note.name}-${note.time}`
+                    key: `${trackIndex}-${noteIndex}-${note.name}-${note.time}`
                 });
             });
         });
@@ -317,9 +339,11 @@ const GridLines = ({ screenHeight, screenWidth }) => {
     return <Graphics ref={graphicsRef} />;
 };
 
-const Visualizer = ({ midiData }) => {
+const Visualizer = ({ midiData, handView, showParticles }) => {
     const containerRef = useRef(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+    console.log('Visualizer Render:', { midiData: !!midiData, handView, showParticles, dimensions });
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -359,8 +383,14 @@ const Visualizer = ({ midiData }) => {
                             scale={0.5}
                         />
                         <GridLines screenHeight={dimensions.height} screenWidth={dimensions.width} />
-                        <FallingNotes midiData={midiData} screenHeight={dimensions.height} screenWidth={dimensions.width} />
-                        <NoteLabels midiData={midiData} screenHeight={dimensions.height} screenWidth={dimensions.width} />
+                        <FallingNotes
+                            midiData={midiData}
+                            screenHeight={dimensions.height}
+                            screenWidth={dimensions.width}
+                            handView={handView}
+                            showParticles={showParticles}
+                        />
+                        <NoteLabels midiData={midiData} screenHeight={dimensions.height} screenWidth={dimensions.width} handView={handView} />
                     </Container>
                 </Stage>
             )}

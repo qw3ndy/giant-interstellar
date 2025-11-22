@@ -5,7 +5,7 @@ import Visualizer from './components/Visualizer/Visualizer';
 import MidiLoader from './components/MidiLoader/MidiLoader';
 import MidiDevice from './components/MidiDevice/MidiDevice';
 import { midiEngine } from './utils/MidiEngine';
-import { Play, Pause, RefreshCw } from 'lucide-react';
+import ControlPanel from './components/ControlPanel/ControlPanel';
 import { PIANO_HEIGHT, TOTAL_PIANO_WIDTH } from './utils/visualConstants';
 
 import './App.css';
@@ -14,66 +14,67 @@ function App() {
   const [midiData, setMidiData] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  const [showVisualizer, setShowVisualizer] = useState(true);
+  const [handView, setHandView] = useState('both'); // 'both', 'right', 'left'
+
   useEffect(() => {
-    if (midiData) {
-      setIsPlaying(false); // Reset playing state
-      midiEngine.loadMidi(midiData);
-    }
-  }, [midiData]);
+    midiEngine.setHandView(handView);
+  }, [handView]);
+
+  useEffect(() => {
+    // Load the MIDI file when the component mounts
+    // In a real app, this might come from a file input or URL
+    // midiEngine.loadMidi(sampleMidi); 
+  }, []);
+
+  const handleMidiLoaded = async (midi) => {
+    setMidiData(midi);
+    setIsPlaying(false); // Reset play state
+    await midiEngine.loadMidi(midi);
+  };
 
   const togglePlay = async () => {
-    if (isPlaying) {
+    if (midiEngine.isPlaying) {
       midiEngine.pause();
+      setIsPlaying(false);
     } else {
       await midiEngine.start();
+      setIsPlaying(true);
     }
-    setIsPlaying(!isPlaying);
   };
 
   const restart = () => {
     midiEngine.stop();
     setIsPlaying(false);
-    // small delay to allow stop to process
-    setTimeout(() => {
-      midiEngine.start();
-      setIsPlaying(true);
-    }, 100);
+    midiEngine.start();
+    setIsPlaying(true);
   };
 
   return (
     <div className="app-container">
       <MidiDevice />
+      <ControlPanel
+        midiData={midiData}
+        isPlaying={isPlaying}
+        onTogglePlay={togglePlay}
+        onRestart={restart}
+        onMidiLoaded={handleMidiLoaded}
+        showVisualizer={showVisualizer}
+        setShowVisualizer={setShowVisualizer}
+        handView={handView}
+        setHandView={setHandView}
+      />
 
-      <div className="controls-overlay">
-        <MidiLoader onMidiLoaded={setMidiData} />
-        <button
-          onClick={togglePlay}
-          className="control-btn"
-          disabled={!midiData}
-          title={isPlaying ? "Pause" : "Play"}
-        >
-          {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-        </button>
-        <button
-          onClick={restart}
-          className="control-btn"
-          disabled={!midiData}
-          title="Restart"
-        >
-          <RefreshCw size={20} />
-        </button>
-      </div>
-
-      <div
-        className="scroll-content"
-        style={{ minWidth: TOTAL_PIANO_WIDTH, width: 'max-content' }}
-      >
+      <div className="scroll-content">
         <div className="visualizer-container">
-          <Visualizer key={midiData ? midiData.header.name : 'empty'} midiData={midiData} isPlaying={isPlaying} />
+          <Visualizer
+            midiData={midiData}
+            handView={handView}
+            showParticles={showVisualizer}
+          />
         </div>
-
-        <div className="piano-container" style={{ height: PIANO_HEIGHT }}>
-          <Piano />
+        <div className="piano-container">
+          <Piano totalWidth={TOTAL_PIANO_WIDTH} />
         </div>
       </div>
     </div>

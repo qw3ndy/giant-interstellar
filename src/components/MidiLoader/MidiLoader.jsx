@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Midi } from '@tonejs/midi';
 import { Upload } from 'lucide-react';
 
-const MidiLoader = ({ onMidiLoaded }) => {
+const MidiLoader = ({ onMidiLoaded, onLoadStart }) => {
     const [isDragging, setIsDragging] = useState(false);
 
     const handleFile = async (file) => {
         if (!file) return;
+
+        if (onLoadStart) onLoadStart();
 
         try {
             const arrayBuffer = await file.arrayBuffer();
