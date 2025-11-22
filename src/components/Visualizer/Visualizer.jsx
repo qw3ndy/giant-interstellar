@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Stage, Container, Graphics, Text, useTick } from '@pixi/react';
+import { Stage, Container, Graphics, Text, Sprite, useTick } from '@pixi/react';
 import { midiEngine } from '../../utils/MidiEngine';
 import { WHITE_KEY_WIDTH, BLACK_KEY_WIDTH, NOTE_FALL_SPEED, START_NOTE, END_NOTE } from '../../utils/visualConstants';
 import * as Tone from 'tone';
+import pianoLogo from '../../assets/piano-logo.png';
 
 // Note Component for PixiJS
 const FallingNotes = ({ midiData, screenHeight, screenWidth }) => {
@@ -223,7 +224,31 @@ const NoteLabels = ({ midiData, screenHeight, screenWidth }) => {
             });
         });
 
-        setVisibleNotes(notes);
+        // De-duplicate overlapping labels
+        const uniqueNotes = [];
+        const notesByPitch = {};
+
+        notes.forEach(note => {
+            if (!notesByPitch[note.name]) {
+                notesByPitch[note.name] = [];
+            }
+            notesByPitch[note.name].push(note);
+        });
+
+        Object.values(notesByPitch).forEach(pitchNotes => {
+            // Sort by Y position
+            pitchNotes.sort((a, b) => a.y - b.y);
+
+            let lastNote = null;
+            pitchNotes.forEach(note => {
+                if (!lastNote || Math.abs(note.y - lastNote.y) > 50) { // 50px minimum distance
+                    uniqueNotes.push(note);
+                    lastNote = note;
+                }
+            });
+        });
+
+        setVisibleNotes(uniqueNotes);
     });
 
     return (
@@ -325,6 +350,14 @@ const Visualizer = ({ midiData }) => {
             {dimensions.width > 0 && (
                 <Stage width={dimensions.width} height={dimensions.height} options={{ backgroundAlpha: 0, antialias: true }}>
                     <Container>
+                        <Sprite
+                            image={pianoLogo}
+                            x={dimensions.width / 2}
+                            y={dimensions.height / 2}
+                            anchor={0.5}
+                            alpha={0.1}
+                            scale={0.5}
+                        />
                         <GridLines screenHeight={dimensions.height} screenWidth={dimensions.width} />
                         <FallingNotes midiData={midiData} screenHeight={dimensions.height} screenWidth={dimensions.width} />
                         <NoteLabels midiData={midiData} screenHeight={dimensions.height} screenWidth={dimensions.width} />
