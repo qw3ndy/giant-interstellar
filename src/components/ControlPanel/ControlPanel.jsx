@@ -137,7 +137,7 @@ const ControlPanel = ({
                 </div>
 
                 <div className="right-section">
-                    {isLoading && <span className="loading-text">Loading MIDI...</span>}
+                    {isLoading && <span className="loading-text">Chargement MIDI...</span>}
 
                     <div className="visualizer-toggle">
                         <select
@@ -146,9 +146,9 @@ const ControlPanel = ({
                             onChange={(e) => setHandView(e.target.value)}
                             style={{ marginRight: '10px' }}
                         >
-                            <option value="both">Both Hands</option>
-                            <option value="right">Right Hand</option>
-                            <option value="left">Left Hand</option>
+                            <option value="both">Les deux</option>
+                            <option value="right">Main droite</option>
+                            <option value="left">Main gauche</option>
                         </select>
 
                         <label className="toggle-label">
@@ -157,7 +157,7 @@ const ControlPanel = ({
                                 checked={showVisualizer}
                                 onChange={(e) => setShowVisualizer(e.target.checked)}
                             />
-                            <span className="toggle-text">Visualizer</span>
+                            <span className="toggle-text">Effets visuels</span>
                         </label>
                     </div>
 

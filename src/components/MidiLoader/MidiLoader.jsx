@@ -4,11 +4,13 @@ import { Upload } from 'lucide-react';
 
 const MidiLoader = ({ onMidiLoaded, onLoadStart }) => {
     const [isDragging, setIsDragging] = useState(false);
+    const [fileName, setFileName] = useState('');
 
     const handleFile = async (file) => {
         if (!file) return;
 
         if (onLoadStart) onLoadStart();
+        setFileName(file.name);
 
         try {
             const arrayBuffer = await file.arrayBuffer();
@@ -17,6 +19,7 @@ const MidiLoader = ({ onMidiLoaded, onLoadStart }) => {
         } catch (error) {
             console.error("Error parsing MIDI file:", error);
             alert("Failed to parse MIDI file.");
+            setFileName(''); // Reset on error
         }
     };
 
@@ -43,19 +46,20 @@ const MidiLoader = ({ onMidiLoaded, onLoadStart }) => {
 
     return (
         <div
-            className={`absolute top-4 right-4 z-50 p-4 rounded-lg border-2 border-dashed transition-colors duration-200 ${isDragging ? 'border-blue-500 bg-blue-500/20' : 'border-gray-600 bg-gray-800/80'
-                }`}
+            className={`midi-loader-container ${isDragging ? 'dragging' : ''}`}
             onDrop={onDrop}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
         >
-            <label className="flex items-center gap-2 cursor-pointer text-white">
-                <Upload size={20} />
-                <span className="text-sm font-medium">Upload MIDI</span>
+            <label className="midi-upload-label" title={fileName || "Upload MIDI file"}>
+                <Upload size={18} />
+                <span className="upload-text" style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {fileName || "Upload MIDI"}
+                </span>
                 <input
                     type="file"
                     accept=".mid,.midi"
-                    className="hidden"
+                    className="midi-file-input"
                     onChange={onChange}
                 />
             </label>
