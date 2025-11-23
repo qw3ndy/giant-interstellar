@@ -28,7 +28,7 @@ const Piano = () => {
         height: '100%',
         backgroundColor: '#1a1a1a',
         display: 'flex',
-        justifyContent: 'center',
+        // justifyContent: 'center', // REMOVED - piano starts at X=0 to match visualizer
         overflowX: 'auto',
         overflowY: 'hidden',
         position: 'relative',
@@ -76,7 +76,7 @@ const Piano = () => {
 
     const blackKeyStyle = (isActive) => ({
         width: `${BLACK_KEY_WIDTH}px`,
-        height: '120px',
+        height: '150px',
         position: 'absolute',
         right: `-${BLACK_KEY_WIDTH / 2}px`,
         top: 0,

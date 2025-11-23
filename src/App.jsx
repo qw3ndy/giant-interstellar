@@ -16,10 +16,15 @@ function App() {
 
   const [showVisualizer, setShowVisualizer] = useState(true);
   const [handView, setHandView] = useState('both'); // 'both', 'right', 'left'
+  const [instrument, setInstrument] = useState('piano');
 
   useEffect(() => {
     midiEngine.setHandView(handView);
   }, [handView]);
+
+  useEffect(() => {
+    midiEngine.setInstrument(instrument);
+  }, [instrument]);
 
   useEffect(() => {
     // Load the MIDI file when the component mounts
@@ -63,6 +68,8 @@ function App() {
         setShowVisualizer={setShowVisualizer}
         handView={handView}
         setHandView={setHandView}
+        instrument={instrument}
+        setInstrument={setInstrument}
       />
 
       <div className="scroll-content">

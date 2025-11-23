@@ -8,13 +8,64 @@ export class MidiEngine {
         this.liveNotes = new Set();
         this.originalBpm = 120;
         this.handView = 'both';
+        this.currentInstrument = 'piano';
 
-        // Main synth for playback and live input
-        this.mainSynth = new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: "triangle" },
-            envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
-        }).toDestination();
-        this.synths.push(this.mainSynth);
+        // Create initial synth
+        this.createSynth('piano');
+    }
+
+    createSynth(instrumentType) {
+        // Dispose of old synths
+        this.synths.forEach(synth => synth.dispose());
+        this.synths = [];
+
+        // Create new synth based on type
+        let synth;
+        switch (instrumentType) {
+            case 'piano':
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
+                }).toDestination();
+                break;
+            case 'electric':
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "square" },
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0.4, release: 0.8 }
+                }).toDestination();
+                break;
+            case 'organ':
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.001, decay: 0.1, sustain: 0.9, release: 0.1 }
+                }).toDestination();
+                break;
+            case 'strings':
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "sawtooth" },
+                    envelope: { attack: 0.3, decay: 0.2, sustain: 0.7, release: 1.5 }
+                }).toDestination();
+                break;
+            case 'synth':
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.1, decay: 0.2, sustain: 0.5, release: 1.2 }
+                }).toDestination();
+                break;
+            default:
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
+                }).toDestination();
+        }
+
+        this.mainSynth = synth;
+        this.synths.push(synth);
+        this.currentInstrument = instrumentType;
+    }
+
+    setInstrument(instrumentType) {
+        this.createSynth(instrumentType);
     }
 
     async loadMidi(midiData) {

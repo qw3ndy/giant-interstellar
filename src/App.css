@@ -219,7 +219,7 @@
   z-index: 10;
   background-color: #1a1a1a;
   /* Ensure it has enough space matching PIANO_HEIGHT in constants */
-  height: 240px;
+  height: 325px;
   min-height: 240px;
 }
 

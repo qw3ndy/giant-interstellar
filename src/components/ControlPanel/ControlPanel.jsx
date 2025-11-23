@@ -12,7 +12,9 @@ const ControlPanel = ({
     showVisualizer,
     setShowVisualizer,
     handView,
-    setHandView
+    setHandView,
+    instrument,
+    setInstrument
 }) => {
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
@@ -113,6 +115,20 @@ const ControlPanel = ({
                             <option value="1.5">1.5x</option>
                             <option value="2">2.0x</option>
                         </select>
+
+                        <select
+                            className="speed-select"
+                            value={instrument}
+                            onChange={(e) => setInstrument(e.target.value)}
+                            disabled={!midiData || isLoading}
+                            title="Instrument"
+                        >
+                            <option value="piano">Piano</option>
+                            <option value="electric">Piano électrique</option>
+                            <option value="organ">Orgue</option>
+                            <option value="strings">Cordes</option>
+                            <option value="synth">Synthé</option>
+                        </select>
                     </div>
                 </div>
 
@@ -146,7 +162,7 @@ const ControlPanel = ({
                             onChange={(e) => setHandView(e.target.value)}
                             style={{ marginRight: '10px' }}
                         >
-                            <option value="both">Les deux</option>
+                            <option value="both">Les deux mains</option>
                             <option value="right">Main droite</option>
                             <option value="left">Main gauche</option>
                         </select>
@@ -157,7 +173,7 @@ const ControlPanel = ({
                                 checked={showVisualizer}
                                 onChange={(e) => setShowVisualizer(e.target.checked)}
                             />
-                            <span className="toggle-text">Effets visuels</span>
+                            <span className="toggle-text">Avec effets visuels</span>
                         </label>
                     </div>
 
