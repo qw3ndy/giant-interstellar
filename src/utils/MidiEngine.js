@@ -6,6 +6,8 @@ export class MidiEngine {
         this.synths = [];
         this.isPlaying = false;
         this.liveNotes = new Set();
+        this.userPlayedNotes = new Set(); // Notes played by user input
+        this.allMidiNotes = new Set(); // All unique notes in the MIDI file
         this.originalBpm = 120;
         this.handView = 'both';
         this.currentInstrument = 'piano';
@@ -80,6 +82,16 @@ export class MidiEngine {
         this.originalBpm = this.midi.header.tempos.length > 0 ? this.midi.header.tempos[0].bpm : 120;
         Tone.Transport.bpm.value = this.originalBpm;
 
+        // Build set of all unique MIDI notes in the file
+        this.allMidiNotes.clear();
+        if (this.midi.tracks) {
+            this.midi.tracks.forEach(track => {
+                track.notes.forEach(note => {
+                    this.allMidiNotes.add(note.midi);
+                });
+            });
+        }
+
         // Schedule notes
         if (this.midi.tracks) {
             this.midi.tracks.forEach((track, trackIndex) => {
@@ -128,12 +140,14 @@ export class MidiEngine {
         const noteName = Tone.Frequency(midiNote, "midi").toNote();
         this.mainSynth.triggerAttack(noteName, Tone.now(), velocity);
         this.liveNotes.add(midiNote);
+        this.userPlayedNotes.add(midiNote); // Mark as user-played
     }
 
     noteOff(midiNote) {
         const noteName = Tone.Frequency(midiNote, "midi").toNote();
         this.mainSynth.triggerRelease(noteName);
         this.liveNotes.delete(midiNote);
+        this.userPlayedNotes.delete(midiNote); // Remove from user-played
     }
 
     getActiveNotes() {
@@ -150,6 +164,78 @@ export class MidiEngine {
             });
         }
         return [...new Set(activeNotes)];
+    }
+
+    getActiveNotesWithTracks() {
+        const activeNotes = [];
+
+        // Live notes don't have track info, default to track 0 (right hand/gold)
+        this.liveNotes.forEach(midiNote => {
+            activeNotes.push({ midi: midiNote, track: 99 });
+        });
+
+        if (this.midi && (this.isPlaying || Tone.Transport.state === 'started')) {
+            const time = this.getCurrentTime();
+            this.midi.tracks.forEach((track, trackIndex) => {
+                track.notes.forEach(note => {
+                    if (time >= note.time && time < note.time + note.duration) {
+                        activeNotes.push({ midi: note.midi, track: trackIndex });
+                    }
+                });
+            });
+        }
+
+        // Remove duplicates, preferring the first occurrence (live notes or first track)
+        const uniqueNotes = new Map();
+        activeNotes.forEach(noteInfo => {
+            if (!uniqueNotes.has(noteInfo.midi)) {
+                uniqueNotes.set(noteInfo.midi, noteInfo.track);
+            }
+        });
+
+        return Array.from(uniqueNotes.entries()).map(([midi, track]) => ({ midi, track }));
+    }
+
+    getActiveNotesWithFeedback() {
+        const activeNotes = [];
+
+        // Get notes currently being played by MIDI
+        const midiActiveNotes = new Set();
+        if (this.midi && (this.isPlaying || Tone.Transport.state === 'started')) {
+            const time = this.getCurrentTime();
+            this.midi.tracks.forEach((track, trackIndex) => {
+                track.notes.forEach(note => {
+                    if (time >= note.time && time < note.time + note.duration) {
+                        midiActiveNotes.add(note.midi);
+                    }
+                });
+            });
+        }
+
+        // Get all active notes with track info
+        const notesWithTracks = this.getActiveNotesWithTracks();
+
+        notesWithTracks.forEach(noteInfo => {
+            let feedback = null;
+
+            // Check if this note was played by the user
+            if (this.userPlayedNotes.has(noteInfo.midi)) {
+                // Check if the note is currently being played by MIDI (timing correct)
+                if (midiActiveNotes.has(noteInfo.midi)) {
+                    feedback = 'correct'; // Green: timing is correct
+                } else {
+                    feedback = 'incorrect'; // Red: wrong timing or wrong note
+                }
+            }
+
+            activeNotes.push({
+                midi: noteInfo.midi,
+                track: noteInfo.track,
+                feedback: feedback // null for MIDI auto-play, 'correct' or 'incorrect' for user
+            });
+        });
+
+        return activeNotes;
     }
 
     setTime(seconds) {
