@@ -5,9 +5,15 @@ import { midiEngine } from '../../utils/MidiEngine';
 import { WHITE_KEY_WIDTH, BLACK_KEY_WIDTH, START_NOTE, END_NOTE } from '../../utils/visualConstants';
 
 const Piano = () => {
-    const keys = useMemo(() => generatePianoKeys(START_NOTE, END_NOTE), []);
     const [activeNotesWithFeedback, setActiveNotesWithFeedback] = useState([]);
+    const [noteRange, setNoteRange] = useState({ minNote: 21, maxNote: 108 });
     const requestRef = useRef();
+
+    const keys = useMemo(() => {
+        const startNote = Tone.Frequency(noteRange.minNote, 'midi').toNote();
+        const endNote = Tone.Frequency(noteRange.maxNote, 'midi').toNote();
+        return generatePianoKeys(startNote, endNote);
+    }, [noteRange]);
 
     const playNote = (note) => {
         const synth = new Tone.PolySynth(Tone.Synth).toDestination();
@@ -17,6 +23,11 @@ const Piano = () => {
     useEffect(() => {
         const loop = () => {
             setActiveNotesWithFeedback(midiEngine.getActiveNotesWithFeedback());
+
+            // Update note range when MIDI is loaded
+            const range = midiEngine.getNoteRange();
+            setNoteRange(range);
+
             requestRef.current = requestAnimationFrame(loop);
         };
         requestRef.current = requestAnimationFrame(loop);

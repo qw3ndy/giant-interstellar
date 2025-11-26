@@ -109,6 +109,29 @@ export class MidiEngine {
         }
     }
 
+    getNoteRange() {
+        if (!this.midi || !this.midi.tracks || this.midi.tracks.length === 0) {
+            return { minNote: 21, maxNote: 108 }; // Default A0 to C8
+        }
+
+        let minMidi = Infinity;
+        let maxMidi = -Infinity;
+
+        this.midi.tracks.forEach(track => {
+            track.notes.forEach(note => {
+                if (note.midi < minMidi) minMidi = note.midi;
+                if (note.midi > maxMidi) maxMidi = note.midi;
+            });
+        });
+
+        // Add padding of 2 octaves (24 semitones) on each side for playability
+        const padding = 12; // 1 octave padding
+        minMidi = Math.max(21, minMidi - padding); // A0 is MIDI 21
+        maxMidi = Math.min(108, maxMidi + padding); // C8 is MIDI 108
+
+        return { minNote: minMidi, maxNote: maxMidi };
+    }
+
     async start() {
         await Tone.start();
         if (Tone.Transport.state !== 'started') {

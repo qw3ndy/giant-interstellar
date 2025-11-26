@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Stage, Container, Graphics, Text, Sprite, useTick } from '@pixi/react';
 import { midiEngine } from '../../utils/MidiEngine';
-import { WHITE_KEY_WIDTH, BLACK_KEY_WIDTH, NOTE_FALL_SPEED, START_NOTE, END_NOTE, TOTAL_PIANO_WIDTH } from '../../utils/visualConstants';
+import { WHITE_KEY_WIDTH, BLACK_KEY_WIDTH, NOTE_FALL_SPEED, calculatePianoWidth } from '../../utils/visualConstants';
 import * as Tone from 'tone';
 import pianoLogo from '../../assets/piano-logo.png';
 
@@ -11,8 +11,10 @@ const FallingNotes = ({ midiData, screenHeight, screenWidth, handView, showParti
     const lastTimeRef = useRef(0);
     const particlesRef = useRef([]);
 
-    // Pre-calculate start MIDI to avoid doing it in the loop
-    const startMidi = useMemo(() => Tone.Frequency(START_NOTE).toMidi(), []);
+    const startMidi = useMemo(() => {
+        const range = midiEngine.getNoteRange();
+        return range.minNote;
+    }, [midiData]);
 
     useTick((delta) => {
         if (!graphicsRef.current || !midiData) return;
@@ -148,7 +150,10 @@ const FallingNotes = ({ midiData, screenHeight, screenWidth, handView, showParti
 
 // Component for rendering note name labels
 const NoteLabels = ({ midiData, screenHeight, screenWidth, handView }) => {
-    const startMidi = useMemo(() => Tone.Frequency(START_NOTE).toMidi(), []);
+    const startMidi = useMemo(() => {
+        const range = midiEngine.getNoteRange();
+        return range.minNote;
+    }, [midiData]);
     const [visibleNotes, setVisibleNotes] = useState([]);
 
     useTick(() => {
@@ -248,7 +253,7 @@ const NoteLabels = ({ midiData, screenHeight, screenWidth, handView }) => {
 // Component for rendering background grid lines
 const GridLines = ({ screenHeight, screenWidth }) => {
     const graphicsRef = useRef(null);
-    const startMidi = useMemo(() => Tone.Frequency(START_NOTE).toMidi(), []);
+    const noteRange = useMemo(() => midiEngine.getNoteRange(), []);
 
     useTick(() => {
         if (!graphicsRef.current) return;
@@ -257,9 +262,8 @@ const GridLines = ({ screenHeight, screenWidth }) => {
         g.clear();
 
         let x = 0;
-        const endMidi = Tone.Frequency(END_NOTE).toMidi();
 
-        for (let i = startMidi; i <= endMidi; i++) {
+        for (let i = noteRange.minNote; i <= noteRange.maxNote; i++) {
             const pitchClass = i % 12;
             const isSharp = [1, 3, 6, 8, 10].includes(pitchClass);
 
@@ -285,18 +289,20 @@ const Visualizer = ({ midiData, handView, showParticles }) => {
 
     useEffect(() => {
         const updateDimensions = () => {
-            // Calculate height: window height - piano height (240px) - control panel (~100px) - margins
-            const availableHeight = window.innerHeight - 240 - 150; // 150px for controls and margins
+            const range = midiEngine.getNoteRange();
+            const pianoWidth = calculatePianoWidth(range.minNote, range.maxNote);
+
+            const availableHeight = window.innerHeight - 240 - 150;
             setDimensions({
-                width: TOTAL_PIANO_WIDTH,
-                height: Math.max(availableHeight, 400) // Minimum 400px
+                width: pianoWidth,
+                height: Math.max(availableHeight, 400)
             });
         };
 
         updateDimensions();
         window.addEventListener('resize', updateDimensions);
         return () => window.removeEventListener('resize', updateDimensions);
-    }, []);
+    }, [midiData]);
 
     if (!midiData) {
         return (
@@ -307,7 +313,7 @@ const Visualizer = ({ midiData, handView, showParticles }) => {
     }
 
     const height = dimensions.height || 400;
-    const width = dimensions.width || TOTAL_PIANO_WIDTH;
+    const width = dimensions.width || calculatePianoWidth(21, 108);
 
     return (
         <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
